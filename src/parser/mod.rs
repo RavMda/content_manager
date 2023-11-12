@@ -9,8 +9,8 @@ pub struct ParsedModel {
 	pub textures: Vec<String>,
 }
 
-struct ModelReader {
-	reader: std::io::Cursor<Vec<u8>>,
+struct ModelReader<'a> {
+	reader: std::io::Cursor<&'a Vec<u8>>,
 }
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
@@ -38,7 +38,7 @@ macro_rules! unwrap_or_return {
 	};
 }
 
-impl ModelReader {
+impl<'a> ModelReader<'a> {
 	fn read_string(&mut self, size: usize) -> Result<String> {
 		let mut string_vec = vec![0u8; size];
 
@@ -104,14 +104,14 @@ impl fmt::Display for ErrorModelFormat {
 
 impl std::error::Error for ErrorModelFormat {}
 
-pub fn parse_model(file: Vec<u8>) -> Result<ParsedModel> {
+pub fn parse_model(file: &Vec<u8>) -> Result<ParsedModel> {
 	let mut model_textures = ParsedModel {
 		directories: vec![],
 		textures: vec![],
 	};
 
 	let mut model_reader = ModelReader {
-		reader: std::io::Cursor::new(file),
+		reader: std::io::Cursor::new(&file),
 	};
 
 	let model_format = unwrap_or_return!(model_reader.read_string(4));

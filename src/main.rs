@@ -1,8 +1,9 @@
 mod parser;
+mod tests;
 
 fn main() {
-	let file = std::fs::read("./models/notmodel.mdl").expect("error opening models/fence.mdl");
-	let parsed = match parser::parse_model(file) {
+	let file = std::fs::read("./src/tests/models/keycard.mdl").expect("error opening models/fence.mdl");
+	let parsed = match parser::parse_model(&file) {
 		Ok(parsed) => parsed,
 		Err(err) => panic!("{}", err),
 	};
