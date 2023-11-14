@@ -5,10 +5,12 @@ mod tests {
 		let file =
 			std::fs::read("./src/tests/models/fence.mdl").expect("error opening models/fence.mdl");
 
-		let parsed = match crate::parser::parse_model(&file) {
+		let parsed = match crate::source_parser::mdl::parse_model(&file) {
 			Ok(parsed) => parsed,
 			Err(err) => panic!("{}", err),
 		};
+
+		println!("{:?}", parsed);
 
 		assert_eq!(parsed.directories.len(), 1);
 		assert_eq!(parsed.directories[0], "models\\_holly\\");
@@ -23,7 +25,7 @@ mod tests {
 		let file = std::fs::read("./src/tests/models/keycard.mdl")
 			.expect("error opening models/keycard.mdl");
 
-		let parsed = match crate::parser::parse_model(&file) {
+		let parsed = match crate::source_parser::mdl::parse_model(&file) {
 			Ok(parsed) => parsed,
 			Err(err) => panic!("{}", err),
 		};
@@ -38,7 +40,7 @@ mod tests {
 		let file = std::fs::read("./src/tests/models/notmodel.mdl")
 			.expect("error opening models/notmodel.mdl");
 
-		match crate::parser::parse_model(&file) {
+		match crate::source_parser::mdl::parse_model(&file) {
 			Ok(_) => panic!("didn't fail"),
 			Err(_) => return,
 		};
@@ -53,7 +55,7 @@ mod tests {
 		let now = Instant::now();
 
 		for _ in 0..1000 {
-			let _ = match crate::parser::parse_model(&file) {
+			let _ = match crate::source_parser::mdl::parse_model(&file) {
 				Ok(parsed) => parsed,
 				Err(err) => panic!("{}", err),
 			};

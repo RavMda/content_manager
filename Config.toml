@@ -1,0 +1,11 @@
+input_folder = "input"
+output_folder = "output"
+
+ignored_addon_packs = [
+	"playermodels",
+	"playermodels2"
+]
+
+[model_whitelist]
+enabled = false
+path = "models.json"

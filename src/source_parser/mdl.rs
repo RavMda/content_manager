@@ -7,6 +7,7 @@ use std::{error::Error, io};
 pub struct ParsedModel {
 	pub directories: Vec<String>,
 	pub textures: Vec<String>,
+	pub used_paths: Vec<String>,
 }
 
 struct ModelReader<'a> {
@@ -88,6 +89,7 @@ pub fn parse_model(file: &Vec<u8>) -> Result<ParsedModel> {
 	let mut model_textures = ParsedModel {
 		directories: vec![],
 		textures: vec![],
+		used_paths: vec![],
 	};
 
 	let mut model_reader = ModelReader {
