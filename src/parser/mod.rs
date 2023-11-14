@@ -15,26 +15,19 @@ struct ModelReader<'a> {
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
-macro_rules! safe_return {
-	($result:expr) => {
-		match $result {
-			Ok(value) => return Ok(value),
-			Err(error) => return Err(Box::new(error)),
-		}
-	};
-}
-
 impl<'a> ModelReader<'a> {
 	fn read_string(&mut self, size: usize) -> Result<String> {
 		let mut string_vec = vec![0u8; size];
 
 		self.reader.read_exact(&mut string_vec)?;
 
-		safe_return!(String::from_utf8(string_vec));
+		let string = String::from_utf8(string_vec)?;
+		Ok(string)
 	}
 
 	fn read_int(&mut self) -> Result<i32> {
-		safe_return!(self.reader.read_i32::<LittleEndian>());
+		let int = self.reader.read_i32::<LittleEndian>()?;
+		Ok(int)
 	}
 
 	#[allow(dead_code)]
@@ -67,7 +60,8 @@ impl<'a> ModelReader<'a> {
 			string_vec.push(byte);
 		}
 
-		safe_return!(String::from_utf8(string_vec))
+		let string = String::from_utf8(string_vec)?;
+		Ok(string)
 	}
 
 	fn set_pos(&mut self, pos: i32) {
