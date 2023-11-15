@@ -6,6 +6,4 @@ ignored_addon_packs = [
 	"playermodels2"
 ]
 
-[model_whitelist]
-enabled = false
-path = "models.json"
+model_whitelist = true

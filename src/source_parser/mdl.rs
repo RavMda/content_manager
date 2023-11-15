@@ -1,13 +1,17 @@
 use byteorder::{LittleEndian, ReadBytesExt};
 use core::fmt;
 use io::Read;
-use std::{error::Error, io};
+use std::{
+	error::Error,
+	io,
+	path::PathBuf,
+};
 
 #[derive(Debug)]
 pub struct ParsedModel {
 	pub directories: Vec<String>,
 	pub textures: Vec<String>,
-	pub used_paths: Vec<String>,
+	pub used_paths: Vec<PathBuf>,
 }
 
 struct ModelReader<'a> {
@@ -127,6 +131,16 @@ pub fn parse_model(file: &Vec<u8>) -> Result<ParsedModel> {
 	for _ in 0..texture_count {
 		let texture = model_reader.read_c_str()?;
 		model_textures.textures.push(texture);
+	}
+
+	for directory in &model_textures.directories {
+		for texture in &model_textures.textures {
+			let vtf_path = format!("materials\\{}{}.vtf", directory, texture);
+			let vmt_path = format!("materials\\{}{}.vmt", directory, texture);
+
+			model_textures.used_paths.push(PathBuf::from(vtf_path));
+			model_textures.used_paths.push(PathBuf::from(vmt_path));
+		}
 	}
 
 	return Ok(model_textures);
