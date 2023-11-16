@@ -1,8 +1,10 @@
 use std::{
 	error::Error,
-	fs,
+	fs::{self},
 	path::{Path, PathBuf},
 };
+
+use walkdir::DirEntry;
 
 use walkdir::WalkDir;
 
@@ -20,20 +22,27 @@ fn get_folders(path: &Path) -> Result<Vec<PathBuf>> {
 }
 
 #[derive(serde::Deserialize, Debug)]
-struct Config {
-	input_folder: String,
-	output_folder: String,
-	ignored_addon_packs: Vec<String>,
-	model_whitelist: bool,
+pub struct Config {
+	pub input_folder: String,
+	pub output_folder: String,
+	pub ignored_addon_packs: Vec<String>,
+	pub model_whitelist: bool,
 }
 
-pub fn run() -> Result<()> {
-	let config_file = fs::read_to_string("Config.toml")?;
-	let config: Config = toml::from_str(&config_file)?;
+fn sort_by_models(a: &DirEntry, b: &DirEntry) -> core::cmp::Ordering {
+	let a_is_model_folder = a.path().ends_with("models");
+	let b_is_model_folder = b.path().ends_with("models");
 
-	let input_path = Path::new(&config.input_folder);
-	let output_path = Path::new(&config.output_folder);
+	if a_is_model_folder && !b_is_model_folder {
+		std::cmp::Ordering::Less
+	} else if !a_is_model_folder && b_is_model_folder {
+		std::cmp::Ordering::Greater
+	} else {
+		std::cmp::Ord::cmp(&a.path(), &b.path())
+	}
+}
 
+fn create_output_directory(output_path: &Path) -> Result<()> {
 	if output_path.exists() {
 		fs::remove_dir_all(output_path)?;
 	}
@@ -41,23 +50,34 @@ pub fn run() -> Result<()> {
 	fs::create_dir(output_path)?;
 	fs::create_dir(output_path.join("_lua"))?;
 
+	Ok(())
+}
+
+fn get_addon_packs(input_path: &Path, config: &Config) -> Result<Vec<String>> {
 	let addon_packs = get_folders(input_path)?;
 
 	let addon_packs: Vec<String> = addon_packs
 		.iter()
-		.map(|f| {
-			f.file_stem()
-				.expect("failed to get file stem")
-				.to_string_lossy()
-				.into()
-		})
+		.map(|f| f.file_stem().unwrap_or_default().to_string_lossy().into())
 		.collect();
 
-	for addon_pack in addon_packs {
-		if config.ignored_addon_packs.contains(&addon_pack) {
-			continue;
-		}
+	let filtered_addon_packs: Vec<String> = addon_packs
+		.into_iter()
+		.filter(|addon_pack| !config.ignored_addon_packs.contains(addon_pack))
+		.collect();
 
+	Ok(filtered_addon_packs)
+}
+
+pub fn run(config: &Config) -> Result<()> {
+	let input_path = Path::new(&config.input_folder);
+	let output_path = Path::new(&config.output_folder);
+
+	create_output_directory(output_path)?;
+
+	let addon_packs = get_addon_packs(input_path, &config)?;
+
+	for addon_pack in addon_packs {
 		let addon_pack_path = input_path.join(&addon_pack);
 		let mut using_whitelist = false;
 		let model_whitelist_path = addon_pack_path.join("models.json");
@@ -78,44 +98,36 @@ pub fn run() -> Result<()> {
 
 		let addons = fs::read_dir(&addon_pack_path)?
 			.flatten()
-			.filter(|f| f.path().is_dir());
+			.filter(|entry| entry.path().is_dir());
 
 		let mut used_materials: Vec<PathBuf> = vec![];
 
 		for addon in addons {
 			WalkDir::new(addon.path())
-				.sort_by(|a, b| {
-					let a_is_model_folder = a.path().ends_with("models");
-					let b_is_model_folder = b.path().ends_with("models");
-
-					if a_is_model_folder && !b_is_model_folder {
-						std::cmp::Ordering::Less
-					} else if !a_is_model_folder && b_is_model_folder {
-						std::cmp::Ordering::Greater
-					} else {
-						std::cmp::Ord::cmp(&a.path(), &b.path())
-					}
-				})
+				.sort_by(sort_by_models)
 				.into_iter()
 				.flatten()
 				.filter(|f| f.path().is_file())
 				.try_for_each(|f| -> Result<()> {
+					// file stem without extension
 					let file_stem: PathBuf = f.path().file_stem().unwrap_or_default().into();
 					let file_stem = file_stem.with_extension("");
 
-					let file_ext = f
+					let file_extension = f
 						.path()
 						.extension()
 						.and_then(|ext| ext.to_str())
 						.unwrap_or_default();
 
-					let normalized_path: PathBuf = f.path().components().skip(3).collect();
+					let clear_path = f.path().strip_prefix(&input_path)?;
 
-					let subpath: String = f
-						.path()
-						.components()
-						.nth(3)
-						.map(|c| c.as_os_str().to_string_lossy().to_string())
+					let normalized_path: PathBuf = clear_path.components().skip(2).collect();
+
+					// e.g. materials, models, sounds, etc
+					let subpath: String = clear_path
+						.iter()
+						.nth(2)
+						.map(|c| c.to_string_lossy().to_string())
 						.unwrap_or_default();
 
 					if subpath == "models" {
@@ -124,7 +136,7 @@ pub fn run() -> Result<()> {
 								return Ok(());
 							}
 
-							if file_ext == "mdl" {
+							if file_extension == "mdl" {
 								let file = fs::read(f.path())?;
 
 								let parsed_model = crate::source_parser::mdl::parse_model(&file)?;
@@ -148,7 +160,7 @@ pub fn run() -> Result<()> {
 						out_path = output_path
 							.join("_lua".to_string())
 							.join(addon_stem)
-							.join(normalized_path);
+							.join(&normalized_path);
 					}
 
 					let out_path_folder = out_path.parent().unwrap();
