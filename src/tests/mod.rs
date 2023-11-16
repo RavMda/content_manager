@@ -46,7 +46,7 @@ mod tests {
 
 	#[test]
 	fn fence_model_parsing_works() {
-		let file = std::fs::read("./src/tests/input/addon_pack_1/addon_1/models/test1.mdl")
+		let file = std::fs::read("src/tests/input/addon_pack_1/addon_1/models/test1.mdl")
 			.expect("error opening test1.mdl");
 
 		let parsed = match crate::source_parser::mdl::parse_model(&file) {
@@ -65,7 +65,7 @@ mod tests {
 
 	#[test]
 	fn keycard_model_parsing_works() {
-		let file = std::fs::read("./src/tests/input/addon_pack_1/addon_1/models/test2.mdl")
+		let file = std::fs::read("src/tests/input/addon_pack_1/addon_1/models/test2.mdl")
 			.expect("error opening test2.mdl");
 
 		let parsed = match crate::source_parser::mdl::parse_model(&file) {
@@ -85,7 +85,7 @@ mod tests {
 
 	#[test]
 	fn notmodel_parsing_fails() {
-		let file = std::fs::read("./src/tests/input/addon_pack_1/addon_1/models/test3.mdl")
+		let file = std::fs::read("src/tests/input/addon_pack_1/addon_1/models/test3.mdl")
 			.expect("error opening test3.mdl");
 
 		match crate::source_parser::mdl::parse_model(&file) {
@@ -96,7 +96,7 @@ mod tests {
 
 	#[test]
 	fn fence_model_parsing_benchmark() {
-		let file = std::fs::read("./src/tests/input/addon_pack_1/addon_1/models/test1.mdl")
+		let file = std::fs::read("src/tests/input/addon_pack_1/addon_1/models/test1.mdl")
 			.expect("error opening test1.mdl");
 
 		use std::time::Instant;
@@ -116,8 +116,8 @@ mod tests {
 	#[test]
 	fn content_manager_no_whitelist() {
 		let config = crate::content_parser::Config {
-			input_folder: "./src/tests/input".into(),
-			output_folder: "./src/tests/output".into(),
+			input_folder: "src/tests/input".into(),
+			output_folder: "src/tests/output".into(),
 			ignored_addon_packs: vec![],
 			model_whitelist: false,
 		};
@@ -143,8 +143,8 @@ mod tests {
 	#[test]
 	fn content_manager_whitelist() {
 		let config = crate::content_parser::Config {
-			input_folder: "./src/tests/input".into(),
-			output_folder: "./src/tests/output".into(),
+			input_folder: "src/tests/input".into(),
+			output_folder: "src/tests/output".into(),
 			ignored_addon_packs: vec![],
 			model_whitelist: true,
 		};
@@ -170,8 +170,8 @@ mod tests {
 	#[test]
 	fn content_manager_ignoring() {
 		let config = crate::content_parser::Config {
-			input_folder: "./src/tests/input".into(),
-			output_folder: "./src/tests/output".into(),
+			input_folder: "src/tests/input".into(),
+			output_folder: "src/tests/output".into(),
 			ignored_addon_packs: vec!["addon_pack_1".into()],
 			model_whitelist: true,
 		};
