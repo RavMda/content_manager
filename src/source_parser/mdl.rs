@@ -1,11 +1,7 @@
 use byteorder::{LittleEndian, ReadBytesExt};
 use core::fmt;
 use io::Read;
-use std::{
-	error::Error,
-	io,
-	path::PathBuf,
-};
+use std::{error::Error, io, path::PathBuf};
 
 #[derive(Debug)]
 pub struct ParsedModel {
@@ -89,6 +85,11 @@ impl fmt::Display for ErrorModelFormat {
 
 impl std::error::Error for ErrorModelFormat {}
 
+fn clear_path(path: &PathBuf) -> PathBuf {
+	let path_str = path.to_string_lossy().replace("\\", "/");
+	PathBuf::from(path_str)
+}
+
 pub fn parse_model(file: &Vec<u8>) -> Result<ParsedModel> {
 	let mut model_textures = ParsedModel {
 		directories: vec![],
@@ -138,8 +139,11 @@ pub fn parse_model(file: &Vec<u8>) -> Result<ParsedModel> {
 			let vtf_path = format!("materials\\{}{}.vtf", directory, texture);
 			let vmt_path = format!("materials\\{}{}.vmt", directory, texture);
 
-			model_textures.used_paths.push(PathBuf::from(vtf_path));
-			model_textures.used_paths.push(PathBuf::from(vmt_path));
+			let vtf_pathbuf = clear_path(&PathBuf::from(vtf_path));
+			let vmt_pathbuf = clear_path(&PathBuf::from(vmt_path));
+
+			model_textures.used_paths.push(vtf_pathbuf);
+			model_textures.used_paths.push(vmt_pathbuf);
 		}
 	}
 
