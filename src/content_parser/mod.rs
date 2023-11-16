@@ -138,42 +138,38 @@ pub fn run(config: &Config) -> Result<()> {
 						.map(|c| c.to_string_lossy().to_string())
 						.unwrap_or_default();
 
-					if subpath == "models" {
-						if using_whitelist {
-							if !&model_whitelist.contains(&file_stem) {
+					let mut out_path = output_path.join(&addon_pack).join(&normalized_path);
+
+					match subpath.as_str() {
+						"models" => {
+							if using_whitelist && !model_whitelist.contains(&file_stem) {
 								return Ok(());
 							}
 
-							if file_extension == "mdl" {
+							if using_whitelist && file_extension == "mdl" {
 								let file = fs::read(f.path())?;
-
 								let parsed_model = crate::source_parser::mdl::parse_model(&file)?;
 								used_materials.extend(parsed_model.used_paths);
 							}
 						}
-					}
-
-					if subpath == "materials" {
-						if using_whitelist && !used_materials.contains(&normalized_path) {
-							return Ok(());
+						"materials" => {
+							if using_whitelist && !used_materials.contains(&normalized_path) {
+								return Ok(());
+							}
 						}
+						"lua" => {
+							let addon_path = addon.path();
+							let addon_stem = addon_path.file_stem().unwrap();
+
+							out_path = output_path
+								.join("_lua".to_string())
+								.join(addon_stem)
+								.join(&normalized_path);
+						}
+						_ => {}
 					}
 
-					let mut out_path = output_path.join(&addon_pack).join(&normalized_path);
-
-					if subpath == "lua" {
-						let addon_path = addon.path();
-						let addon_stem = addon_path.file_stem().unwrap();
-
-						out_path = output_path
-							.join("_lua".to_string())
-							.join(addon_stem)
-							.join(&normalized_path);
-					}
-
-					let out_path_folder = out_path.parent().unwrap();
-
-					fs::create_dir_all(&out_path_folder)?;
+					fs::create_dir_all(out_path.parent().ok_or("couldn't get out_path parent")?)?;
 					fs::copy(f.path(), out_path)?;
 
 					Ok(())
