@@ -69,6 +69,26 @@ fn get_addon_packs(input_path: &Path, config: &Config) -> Result<Vec<String>> {
 	Ok(filtered_addon_packs)
 }
 
+fn load_model_whitelist(config: &Config, model_whitelist_path: &Path) -> Result<Vec<PathBuf>> {
+	if !config.model_whitelist {
+		return Ok(vec![]);
+	}
+
+	if !model_whitelist_path.exists() {
+		return Ok(vec![]);
+	}
+
+	let model_whitelist_file = fs::read_to_string(model_whitelist_path)?;
+	let model_whitelist_json: Vec<PathBuf> = serde_json::from_str(&model_whitelist_file)?;
+
+	let model_whitelist: Vec<PathBuf> = model_whitelist_json
+		.into_iter()
+		.map(|model_path| model_path.file_stem().unwrap_or_default().into())
+		.collect();
+
+	Ok(model_whitelist)
+}
+
 pub fn run(config: &Config) -> Result<()> {
 	let input_path = Path::new(&config.input_folder);
 	let output_path = Path::new(&config.output_folder);
@@ -79,22 +99,10 @@ pub fn run(config: &Config) -> Result<()> {
 
 	for addon_pack in addon_packs {
 		let addon_pack_path = input_path.join(&addon_pack);
-		let mut using_whitelist = false;
 		let model_whitelist_path = addon_pack_path.join("models.json");
 
-		let mut model_whitelist: Vec<PathBuf> = vec![];
-
-		if config.model_whitelist && model_whitelist_path.exists() {
-			let model_whitelist_file = fs::read_to_string(model_whitelist_path)?;
-			let model_whitelist_json: Vec<PathBuf> = serde_json::from_str(&model_whitelist_file)?;
-			using_whitelist = true;
-
-			for model_path in model_whitelist_json {
-				let model_stem: PathBuf = model_path.file_stem().unwrap_or_default().into();
-
-				model_whitelist.push(model_stem);
-			}
-		}
+		let model_whitelist = load_model_whitelist(&config, &model_whitelist_path)?;
+		let using_whitelist = !model_whitelist.is_empty();
 
 		let addons = fs::read_dir(&addon_pack_path)?
 			.flatten()
