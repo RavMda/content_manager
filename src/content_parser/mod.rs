@@ -23,8 +23,8 @@ fn get_folders(path: &Path) -> Result<Vec<PathBuf>> {
 
 #[derive(serde::Deserialize, Debug)]
 pub struct Config {
-	pub input_folder: String,
-	pub output_folder: String,
+	pub input_folder: PathBuf,
+	pub output_folder: PathBuf,
 	pub ignored_addon_packs: Vec<String>,
 	pub model_whitelist: bool,
 }
@@ -69,111 +69,146 @@ fn get_addon_packs(input_path: &Path, config: &Config) -> Result<Vec<String>> {
 	Ok(filtered_addon_packs)
 }
 
-fn load_model_whitelist(config: &Config, model_whitelist_path: &Path) -> Result<Vec<PathBuf>> {
-	if !config.model_whitelist {
-		return Ok(vec![]);
+struct AddonPack {
+	name: String,
+	whitelist: bool,
+	used_models: Vec<PathBuf>,
+	used_materials: Vec<PathBuf>,
+}
+
+impl AddonPack {
+	fn load_whitelist(&mut self, config: &Config) -> Result<()> {
+		if !config.model_whitelist {
+			return Ok(());
+		}
+
+		let whitelist_path = config.input_folder.join(&self.name).join("models.json");
+
+		if !whitelist_path.exists() {
+			return Ok(());
+		}
+
+		let whitelist_file = fs::read_to_string(whitelist_path)?;
+		let whitelist_json: Vec<PathBuf> = serde_json::from_str(&whitelist_file)?;
+
+		let whitelist: Vec<PathBuf> = whitelist_json
+			.into_iter()
+			.map(|model_path| model_path.file_stem().unwrap_or_default().into())
+			.collect();
+
+		self.used_models = whitelist;
+		self.whitelist = true;
+
+		Ok(())
 	}
 
-	if !model_whitelist_path.exists() {
-		return Ok(vec![]);
+	fn uses_model(&self, model: &PathBuf) -> bool {
+		self.used_models.contains(model)
 	}
 
-	let model_whitelist_file = fs::read_to_string(model_whitelist_path)?;
-	let model_whitelist_json: Vec<PathBuf> = serde_json::from_str(&model_whitelist_file)?;
+	fn uses_material(&self, material: &PathBuf) -> bool {
+		self.used_materials.contains(material)
+	}
+}
 
-	let model_whitelist: Vec<PathBuf> = model_whitelist_json
+fn process_addon(addon: &fs::DirEntry, config: &Config, addon_pack: &mut AddonPack) -> Result<()> {
+	WalkDir::new(addon.path())
+		.sort_by(sort_by_models)
 		.into_iter()
-		.map(|model_path| model_path.file_stem().unwrap_or_default().into())
-		.collect();
+		.flatten()
+		.filter(|f| f.path().is_file())
+		.try_for_each(|f| -> Result<()> {
+			// file stem without extension
+			let file_stem: PathBuf = f.path().file_stem().unwrap_or_default().into();
+			let file_stem = file_stem.with_extension("");
 
-	Ok(model_whitelist)
+			let file_extension = f
+				.path()
+				.extension()
+				.and_then(|ext| ext.to_str())
+				.unwrap_or_default();
+
+			let clear_path = f.path().strip_prefix(&config.input_folder)?;
+			let normalized_path: PathBuf = clear_path.components().skip(2).collect();
+
+			// e.g. "materials", "models", "sounds", etc
+			let subpath: String = clear_path
+				.iter()
+				.nth(2)
+				.map(|c| c.to_string_lossy().to_string())
+				.unwrap_or_default();
+
+			let output_folder = &config.output_folder;
+			let mut out_path = output_folder.join(&addon_pack.name).join(&normalized_path);
+
+			match subpath.as_str() {
+				"models" => {
+					if addon_pack.whitelist && !addon_pack.uses_model(&file_stem) {
+						return Ok(());
+					}
+
+					if addon_pack.whitelist && file_extension == "mdl" {
+						let file = fs::read(f.path())?;
+						let parsed_model = crate::source_parser::mdl::parse_model(&file)?;
+
+						addon_pack.used_materials.extend(parsed_model.used_paths);
+					}
+				}
+				"materials" => {
+					if addon_pack.whitelist && !addon_pack.uses_material(&normalized_path) {
+						return Ok(());
+					}
+				}
+				"lua" => {
+					let addon_path = addon.path();
+					let addon_stem = addon_path.file_stem().unwrap();
+
+					out_path = output_folder
+						.join("_lua".to_string())
+						.join(addon_stem)
+						.join(&normalized_path);
+				}
+				_ => {}
+			}
+
+			fs::create_dir_all(out_path.parent().ok_or("couldn't get out_path parent")?)?;
+			fs::copy(f.path(), out_path)?;
+
+			Ok(())
+		})?;
+
+	Ok(())
 }
 
 pub fn run(config: &Config) -> Result<()> {
-	let input_path = Path::new(&config.input_folder);
-	let output_path = Path::new(&config.output_folder);
+	create_output_directory(&config.output_folder)?;
 
-	create_output_directory(output_path)?;
+	let addon_packs = get_addon_packs(&config.input_folder, &config)?;
 
-	let addon_packs = get_addon_packs(input_path, &config)?;
+	for addon_pack_name in addon_packs {
+		println!("processing \"{}\":", addon_pack_name);
 
-	for addon_pack in addon_packs {
-		let addon_pack_path = input_path.join(&addon_pack);
-		let model_whitelist_path = addon_pack_path.join("models.json");
+		let addon_pack_path = &config.input_folder.join(&addon_pack_name);
 
-		let model_whitelist = load_model_whitelist(&config, &model_whitelist_path)?;
-		let using_whitelist = !model_whitelist.is_empty();
+		let mut addon_pack = AddonPack {
+			name: addon_pack_name,
+			used_models: vec![],
+			used_materials: vec![],
+			whitelist: false,
+		};
+
+		addon_pack.load_whitelist(config)?;
 
 		let addons = fs::read_dir(&addon_pack_path)?
 			.flatten()
 			.filter(|entry| entry.path().is_dir());
 
-		let mut used_materials: Vec<PathBuf> = vec![];
-
 		for addon in addons {
-			WalkDir::new(addon.path())
-				.sort_by(sort_by_models)
-				.into_iter()
-				.flatten()
-				.filter(|f| f.path().is_file())
-				.try_for_each(|f| -> Result<()> {
-					// file stem without extension
-					let file_stem: PathBuf = f.path().file_stem().unwrap_or_default().into();
-					let file_stem = file_stem.with_extension("");
+			let addon_name = addon.file_name();
 
-					let file_extension = f
-						.path()
-						.extension()
-						.and_then(|ext| ext.to_str())
-						.unwrap_or_default();
+			println!("- {}", addon_name.to_string_lossy());
 
-					let clear_path = f.path().strip_prefix(&input_path)?;
-
-					let normalized_path: PathBuf = clear_path.components().skip(2).collect();
-
-					// e.g. materials, models, sounds, etc
-					let subpath: String = clear_path
-						.iter()
-						.nth(2)
-						.map(|c| c.to_string_lossy().to_string())
-						.unwrap_or_default();
-
-					let mut out_path = output_path.join(&addon_pack).join(&normalized_path);
-
-					match subpath.as_str() {
-						"models" => {
-							if using_whitelist && !model_whitelist.contains(&file_stem) {
-								return Ok(());
-							}
-
-							if using_whitelist && file_extension == "mdl" {
-								let file = fs::read(f.path())?;
-								let parsed_model = crate::source_parser::mdl::parse_model(&file)?;
-								used_materials.extend(parsed_model.used_paths);
-							}
-						}
-						"materials" => {
-							if using_whitelist && !used_materials.contains(&normalized_path) {
-								return Ok(());
-							}
-						}
-						"lua" => {
-							let addon_path = addon.path();
-							let addon_stem = addon_path.file_stem().unwrap();
-
-							out_path = output_path
-								.join("_lua".to_string())
-								.join(addon_stem)
-								.join(&normalized_path);
-						}
-						_ => {}
-					}
-
-					fs::create_dir_all(out_path.parent().ok_or("couldn't get out_path parent")?)?;
-					fs::copy(f.path(), out_path)?;
-
-					Ok(())
-				})?;
+			process_addon(&addon, &config, &mut addon_pack)?;
 		}
 	}
 

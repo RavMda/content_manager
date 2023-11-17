@@ -12,5 +12,8 @@ fn main() -> Result<()> {
 
 	content_parser::run(&config)?;
 
+	println!("\npress enter to exit...");
+	std::io::stdin().read_line(&mut String::new())?;
+
 	Ok(())
 }
