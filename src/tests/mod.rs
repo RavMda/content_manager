@@ -115,12 +115,7 @@ mod tests {
 
 	#[test]
 	fn content_manager_no_whitelist() {
-		let config = crate::content_parser::Config {
-			input_folder: "src/tests/input".into(),
-			output_folder: "src/tests/output".into(),
-			ignored_addon_packs: vec![],
-			model_whitelist: false,
-		};
+		let config = create_test_config(false);
 
 		match crate::content_parser::run(&config) {
 			Ok(_) => {}
@@ -142,12 +137,7 @@ mod tests {
 
 	#[test]
 	fn content_manager_whitelist() {
-		let config = crate::content_parser::Config {
-			input_folder: "src/tests/input".into(),
-			output_folder: "src/tests/output".into(),
-			ignored_addon_packs: vec![],
-			model_whitelist: true,
-		};
+		let config = create_test_config(true);
 
 		match crate::content_parser::run(&config) {
 			Ok(_) => {}
@@ -169,12 +159,8 @@ mod tests {
 
 	#[test]
 	fn content_manager_ignoring() {
-		let config = crate::content_parser::Config {
-			input_folder: "src/tests/input".into(),
-			output_folder: "src/tests/output".into(),
-			ignored_addon_packs: vec!["addon_pack_1".into()],
-			model_whitelist: true,
-		};
+		let mut config = create_test_config(true);
+		config.ignored_addon_packs = vec!["addon_pack_1".into()];
 
 		match crate::content_parser::run(&config) {
 			Ok(_) => {}
@@ -192,5 +178,14 @@ mod tests {
 		assert_texture!(addon_pack, "materials/test1/test1_mat", false);
 		assert_texture!(addon_pack, "materials/test2/test2_mat", false);
 		assert_texture!(addon_pack, "materials/test2_2/test2_mat", false);
+	}
+
+	fn create_test_config(model_whitelist: bool) -> crate::content_parser::Config {
+		crate::content_parser::Config {
+			input_folder: "src/tests/input".into(),
+			output_folder: "src/tests/output".into(),
+			ignored_addon_packs: vec![],
+			model_whitelist,
+		}
 	}
 }
