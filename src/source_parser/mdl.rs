@@ -11,7 +11,7 @@ pub struct ParsedModel {
 }
 
 struct ModelReader<'a> {
-	reader: std::io::Cursor<&'a Vec<u8>>,
+	reader: io::Cursor<&'a Vec<u8>>,
 }
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
@@ -83,7 +83,7 @@ impl fmt::Display for ErrorModelFormat {
 	}
 }
 
-impl std::error::Error for ErrorModelFormat {}
+impl Error for ErrorModelFormat {}
 
 fn clear_path(path: &PathBuf) -> PathBuf {
 	let path_str = path.to_string_lossy().replace("\\", "/");
@@ -98,7 +98,7 @@ pub fn parse_model(file: &Vec<u8>) -> Result<ParsedModel> {
 	};
 
 	let mut model_reader = ModelReader {
-		reader: std::io::Cursor::new(&file),
+		reader: io::Cursor::new(&file),
 	};
 
 	let model_format = model_reader.read_string(4)?;

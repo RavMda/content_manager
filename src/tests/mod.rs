@@ -45,7 +45,7 @@ mod tests {
 	}
 
 	#[test]
-	fn fence_model_parsing_works() {
+	fn model1_parsing_works() {
 		let file = std::fs::read("src/tests/input/addon_pack_1/addon_1/models/test1.mdl")
 			.expect("error opening test1.mdl");
 
@@ -64,7 +64,7 @@ mod tests {
 	}
 
 	#[test]
-	fn keycard_model_parsing_works() {
+	fn model2_parsing_works() {
 		let file = std::fs::read("src/tests/input/addon_pack_1/addon_1/models/test2.mdl")
 			.expect("error opening test2.mdl");
 
@@ -84,7 +84,7 @@ mod tests {
 	}
 
 	#[test]
-	fn notmodel_parsing_fails() {
+	fn model3_parsing_fails() {
 		let file = std::fs::read("src/tests/input/addon_pack_1/addon_1/models/test3.mdl")
 			.expect("error opening test3.mdl");
 
@@ -95,7 +95,7 @@ mod tests {
 	}
 
 	#[test]
-	fn fence_model_parsing_benchmark() {
+	fn model1_parsing_benchmark() {
 		let file = std::fs::read("src/tests/input/addon_pack_1/addon_1/models/test1.mdl")
 			.expect("error opening test1.mdl");
 

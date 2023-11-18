@@ -53,24 +53,9 @@ fn create_output_directory(output_path: &Path) -> Result<()> {
 	Ok(())
 }
 
-fn get_addon_packs(input_path: &Path, config: &Config) -> Result<Vec<String>> {
-	let addon_packs = get_folders(input_path)?;
-
-	let addon_packs: Vec<String> = addon_packs
-		.iter()
-		.map(|f| f.file_stem().unwrap_or_default().to_string_lossy().into())
-		.collect();
-
-	let filtered_addon_packs: Vec<String> = addon_packs
-		.into_iter()
-		.filter(|addon_pack| !config.ignored_addon_packs.contains(addon_pack))
-		.collect();
-
-	Ok(filtered_addon_packs)
-}
-
 struct AddonPack {
 	name: String,
+	path: PathBuf,
 	whitelist: bool,
 	used_models: Vec<PathBuf>,
 	used_materials: Vec<PathBuf>,
@@ -111,6 +96,29 @@ impl AddonPack {
 	}
 }
 
+fn get_addon_packs(input_path: &Path, config: &Config) -> Result<Vec<AddonPack>> {
+	let addon_packs = get_folders(input_path)?;
+
+	let addon_packs: Vec<String> = addon_packs
+		.iter()
+		.map(|f| f.file_stem().unwrap_or_default().to_string_lossy().into())
+		.collect();
+
+	let addon_packs: Vec<AddonPack> = addon_packs
+		.into_iter()
+		.filter(|addon_pack| !config.ignored_addon_packs.contains(addon_pack))
+		.map(|addon_pack_name| AddonPack {
+			name: addon_pack_name.clone(),
+			path: config.input_folder.join(addon_pack_name),
+			whitelist: false,
+			used_models: vec![],
+			used_materials: vec![],
+		})
+		.collect();
+
+	Ok(addon_packs)
+}
+
 fn process_addon(addon: &fs::DirEntry, config: &Config, addon_pack: &mut AddonPack) -> Result<()> {
 	WalkDir::new(addon.path())
 		.sort_by(sort_by_models)
@@ -132,7 +140,7 @@ fn process_addon(addon: &fs::DirEntry, config: &Config, addon_pack: &mut AddonPa
 			let normalized_path: PathBuf = clear_path.components().skip(2).collect();
 
 			// e.g. "materials", "models", "sounds", etc
-			let subpath: String = clear_path
+			let category: String = clear_path
 				.iter()
 				.nth(2)
 				.map(|c| c.to_string_lossy().to_string())
@@ -141,7 +149,7 @@ fn process_addon(addon: &fs::DirEntry, config: &Config, addon_pack: &mut AddonPa
 			let output_folder = &config.output_folder;
 			let mut out_path = output_folder.join(&addon_pack.name).join(&normalized_path);
 
-			match subpath.as_str() {
+			match category.as_str() {
 				"models" => {
 					if addon_pack.whitelist && !addon_pack.uses_model(&file_stem) {
 						return Ok(());
@@ -161,7 +169,7 @@ fn process_addon(addon: &fs::DirEntry, config: &Config, addon_pack: &mut AddonPa
 				}
 				"lua" => {
 					let addon_path = addon.path();
-					let addon_stem = addon_path.file_stem().unwrap();
+					let addon_stem = addon_path.file_stem().ok_or("couldn't get addon stem")?;
 
 					out_path = output_folder
 						.join("_lua".to_string())
@@ -185,21 +193,12 @@ pub fn run(config: &Config) -> Result<()> {
 
 	let addon_packs = get_addon_packs(&config.input_folder, &config)?;
 
-	for addon_pack_name in addon_packs {
-		println!("processing \"{}\":", addon_pack_name);
-
-		let addon_pack_path = &config.input_folder.join(&addon_pack_name);
-
-		let mut addon_pack = AddonPack {
-			name: addon_pack_name,
-			used_models: vec![],
-			used_materials: vec![],
-			whitelist: false,
-		};
+	for mut addon_pack in addon_packs {
+		println!("processing \"{}\":", addon_pack.name);
 
 		addon_pack.load_whitelist(config)?;
 
-		let addons = fs::read_dir(&addon_pack_path)?
+		let addons = fs::read_dir(&addon_pack.path)?
 			.flatten()
 			.filter(|entry| entry.path().is_dir());
 
