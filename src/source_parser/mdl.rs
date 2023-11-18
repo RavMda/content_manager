@@ -10,13 +10,13 @@ pub struct ParsedModel {
 	pub used_paths: Vec<PathBuf>,
 }
 
-struct ModelReader<'a> {
-	reader: io::Cursor<&'a Vec<u8>>,
+struct ModelReader {
+	reader: io::Cursor<Vec<u8>>,
 }
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
-impl<'a> ModelReader<'a> {
+impl ModelReader {
 	fn read_string(&mut self, size: usize) -> Result<String> {
 		let mut string_vec = vec![0u8; size];
 
@@ -98,7 +98,7 @@ pub fn parse_model(file: &Vec<u8>) -> Result<ParsedModel> {
 	};
 
 	let mut model_reader = ModelReader {
-		reader: io::Cursor::new(&file),
+		reader: io::Cursor::new(file.to_owned()),
 	};
 
 	let model_format = model_reader.read_string(4)?;
