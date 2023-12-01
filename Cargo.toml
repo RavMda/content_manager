@@ -11,3 +11,10 @@ serde = {version = "1.0.192", features = ["derive"]}
 serde_json = "1.0.108"
 toml = "0.8.8"
 walkdir = "2.4.0"
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+opt-level = 3
+lto = true

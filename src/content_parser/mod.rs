@@ -49,6 +49,7 @@ fn create_output_directory(output_path: &Path) -> Result<()> {
 
 	fs::create_dir(output_path)?;
 	fs::create_dir(output_path.join("_lua"))?;
+	fs::create_dir(output_path.join("_lua_merged"))?;
 
 	Ok(())
 }
@@ -59,6 +60,7 @@ struct AddonPack {
 	whitelist: bool,
 	used_models: Vec<PathBuf>,
 	used_materials: Vec<PathBuf>,
+	total_size: u64,
 }
 
 impl AddonPack {
@@ -113,6 +115,7 @@ fn get_addon_packs(input_path: &Path, config: &Config) -> Result<Vec<AddonPack>>
 			whitelist: false,
 			used_models: vec![],
 			used_materials: vec![],
+			total_size: 0,
 		})
 		.collect();
 
@@ -175,12 +178,28 @@ fn process_addon(addon: &fs::DirEntry, config: &Config, addon_pack: &mut AddonPa
 						.join("_lua".to_string())
 						.join(addon_stem)
 						.join(&normalized_path);
+
+					fs::create_dir_all(&out_path.parent().ok_or("couldn't get out_path parent")?)?;
+					fs::copy(f.path(), &out_path)?;
+
+					out_path = output_folder
+						.join("_lua_merged".to_string())
+						.join(&addon_pack.name)
+						.join(&normalized_path);
+
+					fs::create_dir_all(&out_path.parent().ok_or("couldn't get out_path parent")?)?;
+					fs::copy(f.path(), &out_path)?;
+
+					return Ok(());
 				}
 				_ => {}
 			}
 
 			fs::create_dir_all(out_path.parent().ok_or("couldn't get out_path parent")?)?;
 			fs::copy(f.path(), out_path)?;
+
+			let size = f.metadata()?.len();
+			addon_pack.total_size += size;
 
 			Ok(())
 		})?;
@@ -209,6 +228,9 @@ pub fn run(config: &Config) -> Result<()> {
 
 			process_addon(&addon, &config, &mut addon_pack)?;
 		}
+
+		let total_size_mb = addon_pack.total_size as f64 / 1_048_576.0;
+		println!("\ntotal size - {:.2} MB", total_size_mb);
 	}
 
 	Ok(())
