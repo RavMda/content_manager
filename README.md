@@ -1,6 +1,10 @@
 # Content Manager 📦
 
 Tool designed to simplify content management for Garry's Mod server owners.
+<br>
+It allows you to organize your addons into "addon packs," merging materials, models, and more.
+<br>
+Check out the structure in the **`Usage`** section for a visual guide.
 
 ## Building 🛠️
 
@@ -36,6 +40,12 @@ Once the build process is complete, locate the executable in the **`target`** fo
 	    │       │   ├── materials/
 	    │       │   └── lua/
 	    │       └── models.json
+	    ├── output/
+	    │   ├── _lua/
+	    │   ├── _lua_merged/
+	    │   └── playermodels/
+	    │       ├── models/
+	    │       └── materials/
 	    ├── source-mdl-rs.exe
 	    └── Config.toml
 	```
