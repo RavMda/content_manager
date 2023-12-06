@@ -1,5 +1,5 @@
 ![Build](https://img.shields.io/github/actions/workflow/status/RavMda/content_manager/.github%2Fworkflows%2Frust.yml)
-![Release Version](https://img.shields.io/github/v/release/RavMda/content_manager)
+![Release Version](https://img.shields.io/github/v/release/RavMda/content_manager?logo=rust&color=red)
 
 # Content Manager 📦
 
