@@ -1,5 +1,6 @@
 use std::{error::Error, fs};
 
+mod lowercase_path;
 mod content_parser;
 mod source_parser;
 mod tests;

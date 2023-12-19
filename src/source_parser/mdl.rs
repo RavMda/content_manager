@@ -1,3 +1,4 @@
+use crate::lowercase_path::AsLowercasePath;
 use byteorder::{LittleEndian, ReadBytesExt};
 use core::fmt;
 use io::Read;
@@ -139,8 +140,8 @@ pub fn parse_model(file: &Vec<u8>) -> Result<ParsedModel> {
 			let vtf_path = format!("materials\\{}{}.vtf", directory, texture);
 			let vmt_path = format!("materials\\{}{}.vmt", directory, texture);
 
-			let vtf_pathbuf = clear_path(&PathBuf::from(vtf_path));
-			let vmt_pathbuf = clear_path(&PathBuf::from(vmt_path));
+			let vtf_pathbuf = clear_path(&PathBuf::from(vtf_path).to_lowercase());
+			let vmt_pathbuf = clear_path(&PathBuf::from(vmt_path).to_lowercase());
 
 			model_textures.used_paths.push(vtf_pathbuf);
 			model_textures.used_paths.push(vmt_pathbuf);

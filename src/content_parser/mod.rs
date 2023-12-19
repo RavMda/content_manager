@@ -1,3 +1,4 @@
+use crate::lowercase_path::AsLowercasePath;
 use std::{
 	error::Error,
 	fs::{self},
@@ -94,7 +95,7 @@ impl AddonPack {
 	}
 
 	fn uses_material(&self, material: &PathBuf) -> bool {
-		self.used_materials.contains(material)
+		self.used_materials.contains(&material.to_lowercase())
 	}
 }
 
